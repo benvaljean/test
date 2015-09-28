@@ -1,0 +1,194 @@
+#!/bin/bash
+
+#2G BGRC
+#Master location is in SVN
+
+# This should be in .bashrc but just in case - if not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+# Another way to test if running interactively
+#[[ "$-" != *i* ]] && return
+
+bgrc() {
+	echo BGRC 2.11.1 r43 22/09/2015
+	echo BGVIMRC 0.1.9 05/06/2015
+	echo BGSCREENRC 0.1.0 21/08/2015
+	[[ -a ~/bin/deploy_bgrc ]] && echo $(deploy_bgrc --version)
+}
+
+#2.2.17
+#Added richer less prompt by default
+#2.3.18
+#Bash completion using history
+#2.4.19
+#Bash completion using ssh client cfg
+#2.4.20
+#Generic sshconf and some commenting
+#2.4.21
+#Auto complete improvements - only attempt if config exists and add scp and deploy_bgrc
+#2.4.22
+#Bug fix: Removed scp auto complete as it clashes with filenames and comment tidyup
+#2.4.23
+#Tidy up of bash completion ifs
+#2.5.24
+#Terminal titles!
+#2.5.25
+#Redisable auto complete on bash history
+#2.5.26
+#Bug fix: Fixed PS1 - added \[ and \]
+#2.5.27
+#export PAGER
+#2.6.28
+#Page for long outut
+#2.6.29
+#page() uses $PAGER var
+#2.6.30
+#Added VIMBLACKLIST re https://github.com/tpope/vim-pathogen/issues/118
+#2.7.31
+#ssh auto complete on known_hosts
+#TODO: Filter out crap
+#2.7.32
+#Bug fix: Skip if known_hosts is empty/unreadable
+#2.7.33
+#gsetup()
+#2.7.34
+#sudo -E and vim aliases
+#2.7.35
+#Added some minor doc comments
+#2.7.36
+#Only preserve env with sudo vim, no longer on all
+#2.8.0 r37
+#SunOS support
+#2.8.1 r38 06/08/2015
+#Bug fixes
+#2.9.0 r39 13/08/2015
+#prow()
+#2.9.1 r40 21/08/2015
+#Useful default screen aliases
+#2.10.1 r41 17/09/2015
+#bgdu
+#2.11.0 rthe-answer-to-everything 22/09/2015
+#git auto complete
+#extra comments
+#2.11.1 r43
+#Show deploy_bgrc and get version from the external file
+
+#Set psql (and anything else that uses this var) to use less by default
+export PAGER=less
+
+#Set git (and anything else that uses this var) to use vim by default
+export EDITOR=vim
+
+#Check if git installed
+GIT_INSTALLED=0
+git --version &>/dev/null && GIT_INSTALLED=1
+
+#Funky prompt without setting window title
+#PS1='[\[\033[01;32m\]\u@\h\[\033[00m\] \[\033[01;34m\]\w\[\033[00m\]]\$ '
+#Funky prompt with setting window title
+PS1='\[\033]0;\u@\h\007\][\[\033[01;32m\]\u@\h\[\033[00m\] \[\033[01;34m\]\w\[\033[00m\]]\$ '
+
+#Consider using this for git prompt in future release
+#https://github.com/git/git/blob/8976500cbbb13270398d3b3e07a17b8cc7bff43f/contrib/completion/git-prompt.sh
+
+
+#Allow autocd (cd dir by just typing it) but do not error if the current version of bash does not support it
+shopt -s autocd 2>/dev/null
+
+shopt -s checkwinsize
+
+shopt -s histappend
+export HISTSIZE=20000
+export HISTFILESIZE=5000
+export HISTCONTROL=ignoreboth
+export HISTTIMEFORMAT='%F %T '
+export HISTIGNORE=$'[ \t]*:&:[fb]g:exit:ls'
+
+export PATH="$PATH:~/bin:/sbin:/usr/sbin";
+
+#Extended info displayed by default
+export LESS="-M"
+
+#Setup colour when supported
+platform='unknown'
+unamestr=$(uname)
+if [[ "$unamestr" == 'Linux' ]]; then
+   platform='linux'
+elif [[ "$unamestr" == 'FreeBSD' ]] || [[ "$unamestr" == 'Darwin' ]] ; then
+      platform='freebsd'
+elif [[ "$unamestr" == 'SunOS' ]]; then
+   platform='SunOS'
+fi
+
+if [[ "$platform" == 'linux' ]] || [[ "$platform" == 'freebsd' ]]; then
+	alias grep='grep --color'                     # show differences when supported
+	alias egrep='egrep --color=auto'             
+	alias fgrep='fgrep --color=auto'              
+fi
+
+# Some shortcuts for different directory listings
+[[ "$platform" == 'linux' ]] && alias ls='ls -hF --color=tty'                 # classify files in colour
+[[ "$platform" == 'freebsd' ]] && alias ls='ls -HGf'
+alias dir='ls --color=auto --format=vertical'
+alias vdir='ls --color=auto --format=long'
+
+#Ensure syntax highlight is always used in ssh client config
+alias sshconf='vim -c ":setf sshconfig" ~/.ssh/config'
+
+#Ensure environment is maintained with sudo vim to allow vim plugins to work
+alias sv='sudo -E vim'
+
+alias sc='screen -D -R -L'
+alias scnew='screen -L'
+
+alias bgdu='sudo du -sch *'
+
+#ssh auto complete
+#if [ -r ~/.bash_history ]; then
+#	#on bash history (slow if history is large)
+#	ssh_autocomplete_word_list=$(cat ~/.bash_history|awk '{if ($1 == "ssh") print $2}'|egrep  "^[a-zA-Z]"|sort|uniq)
+#fi
+#on ssh client config (preferred)
+#if [ -r ~/.ssh/config ]; then	
+#		ssh_autocomplete_word_list=$(cat ~/.ssh/config|awk '{if ($1 == "Host") print $2}'|egrep  "^[a-zA-Z]"|grep -v '*')
+#		complete -W "$ssh_autocomplete_word_list" ssh deploy_bgrc
+#fi
+#on ssh known hosts
+if [ -r ~/.ssh/known_hosts ]; then
+	ssh_autocomplete_word_list=$(cut -d " " -f1 ~/.ssh/known_hosts | cut -d "," -f1)
+	complete -W "$ssh_autocomplete_word_list" ssh deploy_bgrc
+fi
+
+#git auto complete (tested with 2.3.2)
+if [[ GIT_INSTALLED == "1" ]]; then
+  git_autocomplete_word_list="add bisect checkout clone commit diff fetch grep init log merge mv pull push rebase reset rm show status tag"
+  complete -W "$git_autocomplete_word_list" git
+fi
+
+#grep through history shortcut
+hg() {
+	history | grep "$@"
+}
+
+page() {
+	#page for long output
+	tempfile=$(mktemp ~/.pager.XXX)
+	"$@" >${tempfile}
+	if (( $(wc -l ${tempfile}|cut -f1 -d' ') >= 25 )); then
+		$PAGER $tempfile
+	else
+		cat $tempfile
+	fi
+	rm $tempfile
+}
+
+#Fix Bug in vim 7.0.237 and possibly later. Not seen in 7.4
+#https://github.com/tpope/vim-pathogen/issues/118
+export VIMBLACKLIST="blah12345"
+
+
+#Pipe to this to show a particular row
+prow() {
+	awk '{print $'$1'}'
+}
+
