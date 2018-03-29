@@ -12,7 +12,7 @@
 "fix colours  -not version bumped on some rollouts, appears as 0.1.7
 "0.1.9 05/06/2015
 "added set confirm
-
+"test
 
 "Abort if using evim
 if v:progname =~? "evim"
